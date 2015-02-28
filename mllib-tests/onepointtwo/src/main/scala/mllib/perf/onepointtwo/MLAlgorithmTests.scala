@@ -43,6 +43,7 @@ abstract class RegressionAndClassificationTests[M](sc: SparkContext) extends Per
     val testTime = (System.currentTimeMillis() - start).toDouble / 1000.0
 
     val testMetric = validate(model, testRdd)
+    rdd.unpersist()
     Map("trainingTime" -> trainingTime, "testTime" -> testTime,
       "trainingMetric" -> trainingMetric, "testMetric" -> testMetric)
   }
@@ -305,6 +306,7 @@ abstract class RecommendationTests(sc: SparkContext) extends PerfTest {
     val testTime = (System.currentTimeMillis() - start).toDouble / 1000.0
 
     val testMetric = validate(model, testRdd)
+    rdd.unpersist()
     Map("trainingTime" -> trainingTime, "testTime" -> testTime,
       "trainingMetric" -> trainingMetric, "testMetric" -> testMetric)
   }
@@ -364,6 +366,7 @@ abstract class ClusteringTests(sc: SparkContext) extends PerfTest {
     val testTime = (System.currentTimeMillis() - start).toDouble / 1000.0
 
     val testMetric = validate(model, testRdd)
+    rdd.unpersist()
     Map("trainingTime" -> trainingTime, "testTime" -> testTime,
       "trainingMetric" -> trainingMetric, "testMetric" -> testMetric)
   }

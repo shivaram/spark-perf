@@ -20,7 +20,7 @@ import mllib.perf.onepointtwo.util.DataGenerator
  */
 abstract class StatTests[T](sc: SparkContext) extends PerfTest {
 
-  def runTest(rdd: T)
+  def runTest(rdd: RDD[T])
 
   val NUM_ROWS =  ("num-rows",   "number of rows of the matrix")
   val NUM_COLS =  ("num-cols",   "number of columns of the matrix")
@@ -28,7 +28,7 @@ abstract class StatTests[T](sc: SparkContext) extends PerfTest {
   longOptions = Seq(NUM_ROWS)
   intOptions = intOptions ++ Seq(NUM_COLS)
 
-  var rdd: T = _
+  var rdd: RDD[T] = _
 
   val options = intOptions ++ stringOptions  ++ booleanOptions ++ doubleOptions ++ longOptions
   addOptionsToParser()
@@ -38,11 +38,12 @@ abstract class StatTests[T](sc: SparkContext) extends PerfTest {
     runTest(rdd)
     val end = System.currentTimeMillis()
     val time = (end - start).toDouble / 1000.0
+    rdd.unpersist()
     Map("time" -> time)
   }
 }
 
-abstract class CorrelationTests(sc: SparkContext) extends StatTests[RDD[Vector]](sc){
+abstract class CorrelationTests(sc: SparkContext) extends StatTests[Vector](sc){
   override def createInputData(seed: Long) = {
     val m: Long = longOptionValue(NUM_ROWS)
     val n: Int = intOptionValue(NUM_COLS)
@@ -67,7 +68,7 @@ class SpearmanCorrelationTest(sc: SparkContext) extends CorrelationTests(sc) {
   }
 }
 
-class ChiSquaredFeatureTest(sc: SparkContext) extends StatTests[RDD[LabeledPoint]](sc) {
+class ChiSquaredFeatureTest(sc: SparkContext) extends StatTests[LabeledPoint](sc) {
   override def createInputData(seed: Long) = {
     val m: Long = longOptionValue(NUM_ROWS)
     val n: Int = intOptionValue(NUM_COLS)
@@ -89,10 +90,10 @@ class ChiSquaredGoFTest(sc: SparkContext) extends StatTests[Vector](sc) {
     val m: Long = longOptionValue(NUM_ROWS)
     val rng = new Random(seed)
 
-    rdd = Vectors.dense(Array.fill(m.toInt)(rng.nextDouble()))
+    rdd = sc.parallelize(Seq(Vectors.dense(Array.fill(m.toInt)(rng.nextDouble()))), 1)
   }
-  override def runTest(data: Vector) {
-    Statistics.chiSqTest(data)
+  override def runTest(data: RDD[Vector]) {
+    Statistics.chiSqTest(data.collect()(0))
   }
 }
 
@@ -101,9 +102,9 @@ class ChiSquaredMatTest(sc: SparkContext) extends StatTests[Matrix](sc) {
     val m: Long = longOptionValue(NUM_ROWS)
     val rng = new Random(seed)
 
-    rdd = Matrices.dense(m.toInt, m.toInt, Array.fill(m.toInt * m.toInt)(rng.nextDouble()))
+    rdd = sc.parallelize(Seq(Matrices.dense(m.toInt, m.toInt, Array.fill(m.toInt * m.toInt)(rng.nextDouble()))), 1)
   }
-  override def runTest(data: Matrix) {
-    Statistics.chiSqTest(data)
+  override def runTest(data: RDD[Matrix]) {
+    Statistics.chiSqTest(data.collect()(0))
   }
 }
