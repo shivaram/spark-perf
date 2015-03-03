@@ -10,6 +10,7 @@ import org.apache.spark.Logging
 
 abstract class PerfTest extends Logging {
 
+  val SCALE_FACTOR =        ("scale-factor",  "scale factor used")
   val NUM_TRIALS =          ("num-trials",    "number of trials to run")
   val INTER_TRIAL_WAIT =    ("inter-trial-wait",   "seconds to sleep between trials")
   val NUM_PARTITIONS =      ("num-partitions", "number of input partitions")
@@ -68,7 +69,7 @@ abstract class PerfTest extends Logging {
   var intOptions: Seq[(String, String)] = Seq(NUM_TRIALS, INTER_TRIAL_WAIT, NUM_PARTITIONS,
     RANDOM_SEED)
 
-  var doubleOptions: Seq[(String, String)] = Seq()
+  var doubleOptions: Seq[(String, String)] = Seq(SCALE_FACTOR)
   var longOptions: Seq[(String, String)] = Seq()
 
   var stringOptions: Seq[(String, String)] = Seq()
