@@ -442,7 +442,7 @@ class KMeansTest(sc: SparkContext) extends ClusteringTests(sc) {
   override def runTest(rdd: RDD[Vector]): KMeansModel = {
     val numIterations: Int = intOptionValue(NUM_ITERATIONS)
     val k: Int = intOptionValue(NUM_CENTERS)
-    KMeans.train(rdd, k, numIterations)
+    KMeans.train(rdd, k, numIterations, 1, KMeans.RANDOM)
   }
 }
 

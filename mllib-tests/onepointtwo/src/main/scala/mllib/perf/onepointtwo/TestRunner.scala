@@ -59,7 +59,8 @@ object TestRunner {
         Thread.sleep(interTrialWait)
         res
       }
-      val ec2InstanceType = "ec2-metadata | grep instance-type | awk '{print $2}'" !!
+      val ec2InstanceTypeRaw = "ec2-metadata -t" !!
+      val ec2InstanceType = ec2InstanceTypeRaw.trim.split(":")(1).trim
       // Report the test results as a JSON object describing the test options, Spark
       // configuration, Java system properties, as well as the per-test results.
       // This extra information helps to ensure reproducibility and makes automatic analysis easier.
@@ -67,7 +68,7 @@ object TestRunner {
         ("testName" -> testName) ~
         ("options" -> testOptions) ~
         ("numExecutors" -> sc.getExecutorMemoryStatus.size) ~
-        ("coresPerExecutor" -> System.getenv("SPARK_EXECUTOR_CORES")) ~
+        ("coresPerExecutor" -> System.getenv("SPARK_WORKER_CORES")) ~
         ("ec2InstanceType" -> ec2InstanceType) ~
         ("sparkConf" -> sc.getConf.getAll.toMap) ~
         ("sparkVersion" -> sc.version) ~
