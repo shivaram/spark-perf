@@ -2,6 +2,8 @@ package mllib.perf.onepointtwo
 
 import scala.collection.JavaConverters._
 
+import sys.process._
+
 import org.json4s.JsonDSL._
 import org.json4s.JsonAST._
 import org.json4s.jackson.JsonMethods._
@@ -57,12 +59,16 @@ object TestRunner {
         Thread.sleep(interTrialWait)
         res
       }
+      val ec2InstanceType = "ec2-metadata | grep instance-type | awk '{print $2}'" !!
       // Report the test results as a JSON object describing the test options, Spark
       // configuration, Java system properties, as well as the per-test results.
       // This extra information helps to ensure reproducibility and makes automatic analysis easier.
       val json: JValue =
         ("testName" -> testName) ~
         ("options" -> testOptions) ~
+        ("numExecutors" -> sc.getExecutorMemoryStatus.size) ~
+        ("coresPerExecutor" -> System.getenv("SPARK_EXECUTOR_CORES")) ~
+        ("ec2InstanceType" -> ec2InstanceType) ~
         ("sparkConf" -> sc.getConf.getAll.toMap) ~
         ("sparkVersion" -> sc.version) ~
         ("systemProperties" -> System.getProperties.asScala.toMap) ~
