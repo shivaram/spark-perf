@@ -8,7 +8,7 @@ import org.json4s._
 
 import org.apache.spark.Logging
 
-abstract class PerfTest extends Logging {
+abstract class PerfTest extends Logging with SparkProber {
 
   val SCALE_FACTOR =        ("scale-factor",  "scale factor used")
   val NUM_TRIALS =          ("num-trials",    "number of trials to run")
@@ -60,7 +60,7 @@ abstract class PerfTest extends Logging {
    *
    * @return metrics from run (e.g. ("time" -> time)
    *  */
-  def run(): JValue
+  def run(): (JValue, ProberResults)
 
   val parser = new OptionParser()
   var optionSet: OptionSet = _
