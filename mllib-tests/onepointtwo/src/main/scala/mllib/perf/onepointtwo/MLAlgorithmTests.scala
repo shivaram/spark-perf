@@ -204,7 +204,7 @@ class SparseGLMRegressionTest(sc: SparkContext) extends GLMRegressionTest(sc) {
 class GLMClassificationTest(sc: SparkContext) extends GLMTests(sc) {
 
   val THRESHOLD =  ("per-negative",   "probability for a negative label during data generation")
-  val SCALE =  ("scale-factor",   "scale factor for the noise during data generation")
+  val SCALE =  ("noise-scale-factor",   "scale factor for the noise during data generation")
   val LOSS =  ("loss",   "loss to minimize. Supported: logistic, hinge (SVM).")
 
   doubleOptions = doubleOptions ++ Seq(THRESHOLD, SCALE)
@@ -426,7 +426,7 @@ class NaiveBayesTest(sc: SparkContext)
   extends RegressionAndClassificationTests[NaiveBayesModel](sc) {
 
   val THRESHOLD =  ("per-negative",   "probability for a negative label during data generation")
-  val SCALE =  ("scale-factor",   "scale factor for the noise during data generation")
+  val SCALE =  ("noise-scale-factor",   "scale factor for the noise during data generation")
   val SMOOTHING =     ("nb-lambda",   "the smoothing parameter lambda for Naive Bayes")
 
   doubleOptions = doubleOptions ++ Seq(THRESHOLD, SCALE, SMOOTHING)
