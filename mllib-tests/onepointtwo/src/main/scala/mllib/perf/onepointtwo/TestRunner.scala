@@ -54,7 +54,7 @@ object TestRunner {
       val interTrialWait = test.getWait
       var proberLog: ProberResults = null
 
-      var testOptions: JValue = test.getOptions
+      val testOptions: JValue = test.getOptions
       val results: Seq[JValue] = (1 to numTrials).map { i =>
         test.createInputData(rand.nextLong())
 
@@ -75,8 +75,11 @@ object TestRunner {
         res._1
       }
 
-      val ec2InstanceTypeRaw = "ec2-metadata -t".!!
-      val ec2InstanceType = ec2InstanceTypeRaw.trim.split(":")(1).trim
+      val parseType = (str: String) => str.trim.split(":")(1).trim
+      val ec2DriverType = parseType("ec2-metadata -t".!!)
+      val worker = "head -n1 /root/spark-ec2/slaves".!!.trim
+      val ec2InstanceType = parseType(s"ssh $worker ec2-metadata -t".!!)
+
       // Report the test results as a JSON object describing the test options, Spark
       // configuration, Java system properties, as well as the per-test results.
       // This extra information helps to ensure reproducibility and makes automatic analysis easier.
@@ -86,6 +89,7 @@ object TestRunner {
         ("numExecutors" -> sc.getExecutorMemoryStatus.size) ~
         ("coresPerExecutor" -> System.getenv("SPARK_WORKER_CORES")) ~
         ("ec2InstanceType" -> ec2InstanceType) ~
+        ("ec2DriverType" -> ec2DriverType) ~
         ("sparkConf" -> sc.getConf.getAll.toMap) ~
         ("sparkVersion" -> sc.version) ~
         ("systemProperties" -> System.getProperties.asScala.toMap) ~
