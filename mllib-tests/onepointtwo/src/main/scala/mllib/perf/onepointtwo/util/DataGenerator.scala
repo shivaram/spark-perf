@@ -492,11 +492,8 @@ class KMeansDataGenerator(
     }
   }
 
-  private val centers = (0 until numCenters).map{i =>
-    Array.fill(numColumns)((2 * rng.nextDouble() - 1)*scale_factors(i))
-  }
-
   override def nextValue(): Vector = {
+    val centers = KMeansDataGenerator.getCenters(numCenters, numColumns, rng, scale_factors)
     val pick_center_rand = rng2.nextDouble()
 
     val centerToAddTo = centers(concentrations.indexWhere(p => pick_center_rand <= p))
@@ -509,4 +506,19 @@ class KMeansDataGenerator(
   }
 
   override def copy(): KMeansDataGenerator = new KMeansDataGenerator(numCenters, numColumns, seed)
+}
+
+object KMeansDataGenerator {
+
+  private var centers: Option[Seq[Array[Double]]] = None
+
+  def getCenters(numCenters: Int, numColumns: Int, rng: java.util.Random, scale_factors: Array[Int]) = {
+    if (centers.isEmpty) {
+      centers = Some((0 until numCenters).map { i =>
+        Array.fill(numColumns)((2 * rng.nextDouble() - 1)*scale_factors(i))
+      })
+    }
+    centers.get
+  }
+
 }
