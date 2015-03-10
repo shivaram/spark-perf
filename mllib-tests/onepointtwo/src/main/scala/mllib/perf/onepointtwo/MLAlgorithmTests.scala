@@ -33,10 +33,18 @@ abstract class RegressionAndClassificationTests[M](sc: SparkContext) extends Per
   var rdd: RDD[LabeledPoint] = _
   var testRdd: RDD[LabeledPoint] = _
 
-  override def run(): JValue = {
+  override def run() = {
     var start = System.currentTimeMillis()
     val model = runTest(rdd)
     val trainingTime = (System.currentTimeMillis() - start).toDouble / 1000.0
+
+    val proberLog = proberResults().waitAndCopy(3000)
+      .record(Map(
+        " testName" -> testName,
+        " sparkAppName" -> sc.appName,
+        " endToEndTrainingTimeMillis" -> (trainingTime * 1000).toString,
+        " totalStages" -> listener.stageCnt.toString)
+      )
 
     start = System.currentTimeMillis()
     val trainingMetric = validate(model, rdd)
@@ -44,8 +52,9 @@ abstract class RegressionAndClassificationTests[M](sc: SparkContext) extends Per
 
     val testMetric = validate(model, testRdd)
     rdd.unpersist()
-    Map("trainingTime" -> trainingTime, "testTime" -> testTime,
+    val map = Map("trainingTime" -> trainingTime, "testTime" -> testTime,
       "trainingMetric" -> trainingMetric, "testMetric" -> testMetric)
+    (map, proberLog)
   }
 
   /**
@@ -323,10 +332,12 @@ abstract class RecommendationTests(sc: SparkContext) extends PerfTest {
     math.sqrt(predictionsAndRatings.map(x => (x._1 - x._2) * (x._1 - x._2)).mean())
   }
 
-  override def run(): JValue = {
+  override def run() = {
     var start = System.currentTimeMillis()
     val model = runTest(rdd)
     val trainingTime = (System.currentTimeMillis() - start).toDouble / 1000.0
+
+    val proberLog = proberResults().waitAndCopy(3000)
 
     start = System.currentTimeMillis()
     val trainingMetric = validate(model, rdd)
@@ -334,8 +345,9 @@ abstract class RecommendationTests(sc: SparkContext) extends PerfTest {
 
     val testMetric = validate(model, testRdd)
     rdd.unpersist()
-    Map("trainingTime" -> trainingTime, "testTime" -> testTime,
+    val map = Map("trainingTime" -> trainingTime, "testTime" -> testTime,
       "trainingMetric" -> trainingMetric, "testMetric" -> testMetric)
+    (map, proberLog)
   }
 }
 
@@ -383,10 +395,18 @@ abstract class ClusteringTests(sc: SparkContext) extends PerfTest {
     println("Num Examples: " + rdd.count())
   }
 
-  override def run(): JValue = {
+  override def run() = {
     var start = System.currentTimeMillis()
     val model = runTest(rdd)
     val trainingTime = (System.currentTimeMillis() - start).toDouble / 1000.0
+
+    val proberLog = proberResults().waitAndCopy(3000)
+      .record(Map(
+        " testName" -> testName,
+        " sparkAppName" -> sc.appName,
+        " endToEndTrainingTimeMillis" -> (trainingTime * 1000).toString,
+        " totalStages" -> listener.stageCnt.toString)
+      )
 
     start = System.currentTimeMillis()
     val trainingMetric = validate(model, rdd)
@@ -394,8 +414,9 @@ abstract class ClusteringTests(sc: SparkContext) extends PerfTest {
 
     val testMetric = validate(model, testRdd)
     rdd.unpersist()
-    Map("trainingTime" -> trainingTime, "testTime" -> testTime,
+    val map = Map("trainingTime" -> trainingTime, "testTime" -> testTime,
       "trainingMetric" -> trainingMetric, "testMetric" -> testMetric)
+    (map, proberLog)
   }
 }
 
@@ -415,6 +436,9 @@ class NaiveBayesTest(sc: SparkContext)
 
   /** Note: using same data generation as for GLMClassificationTest, but should change later */
   override def createInputData(seed: Long) = {
+    // Unpersist if generated before; useful for freeing memory between trials.
+    Seq(rdd, testRdd).foreach(Option(_).foreach(_.unpersist(blocking = true)))
+
     val numExamples: Long = longOptionValue(NUM_EXAMPLES)
     val numFeatures: Int = intOptionValue(NUM_FEATURES)
     val numPartitions: Int = intOptionValue(NUM_PARTITIONS)

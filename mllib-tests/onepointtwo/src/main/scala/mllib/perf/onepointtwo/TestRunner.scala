@@ -13,13 +13,14 @@ import org.apache.spark.SparkContext
 
 object TestRunner {
     def main(args: Array[String]) {
-      if (args.size < 1) {
+      if (args.size < 2) {
         println(
-          "mllib.perf.TestRunner requires 1 or more args, you gave %s, exiting".format(args.size))
+          "mllib.perf.TestRunner requires 2 or more args, you gave %s, exiting".format(args.size))
         System.exit(1)
       }
-      val testName = args(0)
-      val perfTestArgs = args.slice(1, args.length)
+      val proberLogFile = args(0)
+      val testName = args(1)
+      val perfTestArgs = args.drop(2)
       val sc = new SparkContext(new SparkConf().setAppName("TestRunner: " + testName))
 
       // Unfortunate copy of code because there are Perf Tests in both projects and the compiler doesn't like it
@@ -51,16 +52,30 @@ object TestRunner {
 
       val numTrials = test.getNumTrials
       val interTrialWait = test.getWait
+      var proberLog: ProberResults = null
 
       var testOptions: JValue = test.getOptions
       val results: Seq[JValue] = (1 to numTrials).map { i =>
         test.createInputData(rand.nextLong())
-        val res: JValue = test.run()
+
+        // We register prober at last trial, so the log records
+        // the DAG once.  Further, data generation & validation
+        // are not included in the DAG (which consists of training only).
+        if (i == numTrials) {
+          Thread.sleep(3000)
+          test.beforeProberJob(sc)
+          test.recordAtTaskLevel()
+          Thread.sleep(500)
+        }
+
+        val res = test.run()
         System.gc()
         Thread.sleep(interTrialWait)
-        res
+        proberLog = res._2
+        res._1
       }
-      val ec2InstanceTypeRaw = "ec2-metadata -t" !!
+
+      val ec2InstanceTypeRaw = "ec2-metadata -t".!!
       val ec2InstanceType = ec2InstanceTypeRaw.trim.split(":")(1).trim
       // Report the test results as a JSON object describing the test options, Spark
       // configuration, Java system properties, as well as the per-test results.
@@ -76,6 +91,8 @@ object TestRunner {
         ("systemProperties" -> System.getProperties.asScala.toMap) ~
         ("results" -> results)
       println("results: " + compact(render(json)))
+
+      Option(proberLog).foreach(_.printToFile(proberLogFile))
 
       sc.stop()
   }
