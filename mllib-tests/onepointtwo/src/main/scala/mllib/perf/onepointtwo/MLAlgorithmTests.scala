@@ -350,6 +350,8 @@ abstract class ClusteringTests(sc: SparkContext) extends PerfTest {
   }
 
   override def createInputData(seed: Long) = {
+    Seq(rdd, testRdd).foreach(Option(_).foreach(_.unpersist(blocking = true)))
+
     val numPartitions: Int = intOptionValue(NUM_PARTITIONS)
 
     val numPoints: Long = longOptionValue(NUM_POINTS)
