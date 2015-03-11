@@ -342,11 +342,12 @@ abstract class ClusteringTests(sc: SparkContext) extends PerfTest {
   var testRdd: RDD[Vector] = _
 
   def validate(model: KMeansModel, rdd: RDD[Vector]): Double = {
-    val numPoints = rdd.cache().count()
-
-    val error = model.computeCost(rdd)
-
-    math.sqrt(error/numPoints)
+    -1
+//    val numPoints = rdd.cache().count()
+//
+//    val error = model.computeCost(rdd)
+//
+//    math.sqrt(error/numPoints)
   }
 
   override def createInputData(seed: Long) = {
