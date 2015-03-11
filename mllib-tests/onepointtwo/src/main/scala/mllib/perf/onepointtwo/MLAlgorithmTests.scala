@@ -165,6 +165,33 @@ class GLMRegressionTest(sc: SparkContext) extends GLMTests(sc) {
   }
 }
 
+class SparseGLMRegressionTest(sc: SparkContext) extends GLMRegressionTest(sc) {
+
+  val SPARSITY =  ("sparsity",   "sparsity of data")
+
+  override def createInputData(seed: Long) = {
+    val numExamples: Long = longOptionValue(NUM_EXAMPLES)
+    val numFeatures: Int = intOptionValue(NUM_FEATURES)
+    val numPartitions: Int = intOptionValue(NUM_PARTITIONS)
+
+    val intercept: Double = doubleOptionValue(INTERCEPT)
+    val eps: Double = doubleOptionValue(EPS)
+    val sparsity: Double = doubleOptionValue(SPARSITY)
+
+    val data = DataGenerator.generateSparseLabeledPoints(sc, math.ceil(numExamples * 1.25).toLong,
+      numFeatures, intercept, eps, numPartitions, sparsity, seed)
+
+    val split = data.randomSplit(Array(0.8, 0.2), seed)
+
+    rdd = split(0).cache()
+    testRdd = split(1)
+
+    // Materialize rdd
+    println("Num Examples: " + rdd.count())
+  }
+}
+
+
 class GLMClassificationTest(sc: SparkContext) extends GLMTests(sc) {
 
   val THRESHOLD =  ("per-negative",   "probability for a negative label during data generation")

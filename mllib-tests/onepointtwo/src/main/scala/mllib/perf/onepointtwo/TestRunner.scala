@@ -24,6 +24,7 @@ object TestRunner {
 
       // Unfortunate copy of code because there are Perf Tests in both projects and the compiler doesn't like it
       val test: PerfTest = testName match {
+        case "sparse-glm-regression" => new SparseGLMRegressionTest(sc)
         case "glm-regression" => new GLMRegressionTest(sc)
         case "glm-classification" => new GLMClassificationTest(sc)
         case "naive-bayes" => new NaiveBayesTest(sc)

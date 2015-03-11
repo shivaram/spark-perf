@@ -29,6 +29,20 @@ object DataGenerator {
 
   }
 
+  def generateSparseLabeledPoints(
+      sc: SparkContext,
+      numRows: Long,
+      numCols: Int,
+      intercept: Double,
+      eps: Double,
+      numPartitions: Int,
+      sparsity: Double = 1.0,
+      seed: Long = System.currentTimeMillis(),
+      problem: String = ""): RDD[LabeledPoint] = {
+    RandomRDDs.randomRDD(sc,
+      new SparseLinearDataGenerator(numCols,intercept, seed, eps, problem, sparsity), numRows, numPartitions, seed)
+  }
+
   def generateDistributedSquareMatrix(
       sc: SparkContext,
       m: Long,
@@ -368,6 +382,49 @@ class LinearDataGenerator(
 
   override def copy(): LinearDataGenerator =
     new LinearDataGenerator(numFeatures, intercept, seed, eps, problem, sparsity)
+}
+
+class SparseLinearDataGenerator(
+    val numFeatures: Int,
+    val intercept: Double,
+    val seed: Long,
+    val eps: Double,
+    val problem: String = "",
+    val sparsity: Double = 1.0) extends RandomDataGenerator[LabeledPoint] {
+
+  private val rng = new java.util.Random(seed)
+
+  private val weights = Array.fill(numFeatures)(rng.nextDouble())
+
+  override def nextValue(): LabeledPoint = {
+    val nnz = math.ceil((rng.nextGaussian() + sparsity)*(numFeatures)).toInt
+    val x = Array.fill[Double](nnz)(2*rng.nextDouble()-1)
+    val idxRng = new scala.util.Random(rng.nextLong())
+    val xIdx = idxRng.shuffle((0 until numFeatures).toList).take(nnz).toArray
+    val sparseX = Vectors.sparse(nnz, xIdx, x)
+
+    var total = 0.0
+    xIdx.zipWithIndex.foreach { case (idx, i) =>
+      total += weights(idx) * x(i)
+    }
+
+    val y = total + intercept + eps*rng.nextGaussian()
+    val yD =
+      if (problem == "SVM"){
+        if (y < 0.0) 0.0 else 1.0
+      } else{
+        y
+      }
+
+    LabeledPoint(yD, sparseX)
+  }
+
+  override def setSeed(seed: Long) {
+    rng.setSeed(seed)
+  }
+
+  override def copy(): SparseLinearDataGenerator =
+    new SparseLinearDataGenerator(numFeatures, intercept, seed, eps, problem, sparsity)
 }
 
 
