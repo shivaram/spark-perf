@@ -109,6 +109,8 @@ class GLMRegressionTest(sc: SparkContext) extends GLMTests(sc) {
   addOptionsToParser()
 
   override def createInputData(seed: Long) = {
+    Seq(rdd, testRdd).foreach(Option(_).foreach(_.unpersist(blocking = true)))
+
     val numExamples: Long = longOptionValue(NUM_EXAMPLES)
     val numFeatures: Int = intOptionValue(NUM_FEATURES)
     val numPartitions: Int = intOptionValue(NUM_PARTITIONS)
@@ -129,11 +131,12 @@ class GLMRegressionTest(sc: SparkContext) extends GLMTests(sc) {
   }
 
   override def validate(model: GeneralizedLinearModel, rdd: RDD[LabeledPoint]): Double = {
-    val numExamples = rdd.count()
-    val predictions: RDD[(Double, Double)] = rdd.map { example =>
-      (model.predict(example.features), example.label)
-    }
-    calculateRMSE(predictions, numExamples)
+    -1
+//    val numExamples = rdd.count()
+//    val predictions: RDD[(Double, Double)] = rdd.map { example =>
+//      (model.predict(example.features), example.label)
+//    }
+//    calculateRMSE(predictions, numExamples)
   }
 
   override def runTest(rdd: RDD[LabeledPoint]): GeneralizedLinearModel = {
@@ -465,11 +468,12 @@ class NaiveBayesTest(sc: SparkContext)
   }
 
   override def validate(model: NaiveBayesModel, rdd: RDD[LabeledPoint]): Double = {
-    val numExamples = rdd.count()
-    val predictions: RDD[(Double, Double)] = rdd.map { example =>
-      (model.predict(example.features), example.label)
-    }
-    calculateAccuracy(predictions, numExamples)
+    -1
+//    val numExamples = rdd.count()
+//    val predictions: RDD[(Double, Double)] = rdd.map { example =>
+//      (model.predict(example.features), example.label)
+//    }
+//    calculateAccuracy(predictions, numExamples)
   }
 
   override def runTest(rdd: RDD[LabeledPoint]): NaiveBayesModel = {
