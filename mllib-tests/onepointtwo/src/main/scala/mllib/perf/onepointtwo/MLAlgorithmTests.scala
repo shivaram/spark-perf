@@ -18,7 +18,7 @@ import org.apache.spark.rdd.RDD
 import mllib.perf.onepointtwo.util.{DataLoader, DataGenerator}
 
 /** Parent class for tests which run on a large dataset. */
-abstract class RegressionAndClassificationTests[M](sc: SparkContext) extends PerfTest {
+abstract class RegressionAndClassificationTests[M](val sc: SparkContext) extends PerfTest {
 
   def runTest(rdd: RDD[LabeledPoint]): M
 
@@ -354,7 +354,7 @@ abstract class RecommendationTests(sc: SparkContext) extends PerfTest {
   }
 }
 
-abstract class ClusteringTests(sc: SparkContext) extends PerfTest {
+abstract class ClusteringTests(val sc: SparkContext) extends PerfTest {
 
   def runTest(rdd: RDD[Vector]): KMeansModel
 
@@ -399,6 +399,20 @@ abstract class ClusteringTests(sc: SparkContext) extends PerfTest {
 
     // Materialize rdd
     println("Num Examples: " + rdd.count())
+  }
+
+  /**
+   * Best-efforts to warm up network links between all worker pairs.
+   *
+   * Useful for making fullJob as similar to minJob as possible.  In minJob, # machines
+   * is usually small, therefore the warmup trial(s) usually warm up all links.  But this
+   * might not be the case in fullJob which has a much larger number of machines.
+   */
+  def warmUpNetworkLinks(): Unit = {
+    val numExec = sc.getExecutorMemoryStatus.size
+    def rdd = sc.parallelize(1 to numExec * 2, numExec * 2).setName("WarmUpNetworkRDD")
+    rdd.map(x => (x, x)).reduceByKey((x, y) => x + x, numExec).collect()
+    rdd.repartition(numExec - 1).collect()
   }
 
   override def run() = {
