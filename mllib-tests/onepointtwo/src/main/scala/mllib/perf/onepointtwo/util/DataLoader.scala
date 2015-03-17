@@ -4,6 +4,9 @@ import org.apache.spark.SparkContext
 import org.apache.spark.mllib.regression._
 import org.apache.spark.mllib.util.MLUtils
 import org.apache.spark.rdd.RDD
+import org.apache.spark.rdd.PartitionPruningRDD
+import org.apache.spark.storage.StorageLevel
+import org.apache.spark.mllib.linalg.{SparseVector, Vector, Vectors}
 
 object DataLoader {
 
@@ -50,8 +53,8 @@ object DataLoader {
   /** Infer label type from data */
   private def isClassification(data: RDD[LabeledPoint]): Boolean = {
     val labelStats =
-      data.mapPartitions(PartitionLabelStats.labelSeqOp)
-        .fold(new PartitionLabelStats(Double.MaxValue, Double.MinValue, 0, false))(
+      data.mapPartitions(PartitionLabelStats.labelSeqOp).fold(
+        new PartitionLabelStats(Double.MaxValue, Double.MinValue, 0, false))(
           PartitionLabelStats.labelCombOp)
     labelStats.distinct <= PartitionLabelStats.MAX_CATEGORIES && !labelStats.nonInteger
   }
@@ -63,15 +66,23 @@ object DataLoader {
    *         categoricalFeaturesInfo is a map of categorical feature arities, and
    *         numClasses = number of classes label can take.
    */
-  private[onepointtwo] def loadLibSVMFiles(
+  def loadLibSVMFiles(
       sc: SparkContext,
       numPartitions: Int,
       trainingDataPath: String,
       testDataPath: String,
       testDataFraction: Double,
-      seed: Long): (Array[RDD[LabeledPoint]], Map[Int, Int], Int) = {
+      seed: Long,
+      scaleFactor: Double = 1.0): (Array[RDD[LabeledPoint]], Map[Int, Int], Int, RDD[LabeledPoint]) = {
+    var textRdd = sc.textFile(trainingDataPath, numPartitions)
+    if (scaleFactor != 1.0) {
+      val totalParts = textRdd.partitions.size
+      val reqdParts = math.ceil(scaleFactor * totalParts).toInt
+      textRdd = PartitionPruningRDD.create(textRdd, 
+        partId => partId < reqdParts)
+    }
 
-    val trainingData = MLUtils.loadLibSVMFile(sc, trainingDataPath, -1, numPartitions)
+    val trainingData = loadLibSVMFileFromText(textRdd, trainingDataPath, -1, numPartitions)
 
     val (rdds, categoricalFeaturesInfo_) = if (testDataPath == "") {
       // randomly split trainingData into train, test
@@ -137,7 +148,50 @@ object DataLoader {
       }
     }
 
-    (finalDatasets, categoricalFeaturesInfo_, numClasses)
+    (finalDatasets, categoricalFeaturesInfo_, numClasses, trainingData)
   }
+
+  def loadLibSVMFileFromText(
+      rdd: RDD[String],
+      path: String,
+      numFeatures: Int,
+      minPartitions: Int): RDD[LabeledPoint] = {
+    val parsed = rdd
+      .map(_.trim)
+      .filter(line => !(line.isEmpty || line.startsWith("#")))
+      .map { line =>
+        val items = line.split(' ')
+        val label = items.head.toDouble
+        val (indices, values) = items.tail.filter(_.nonEmpty).map { item =>
+          val indexAndValue = item.split(':')
+          val index = indexAndValue(0).toInt - 1 // Convert 1-based indices to 0-based.
+          val value = indexAndValue(1).toDouble
+          (index, value)
+        }.unzip
+        (label, indices.toArray, values.toArray)
+      }
+
+    // Determine number of features.
+    val d = if (numFeatures > 0) {
+      numFeatures
+    } else {
+      parsed.persist(StorageLevel.MEMORY_ONLY)
+      parsed.map { case (label, indices, values) =>
+        indices.lastOption.getOrElse(0)
+      }.reduce(math.max) + 1
+    }
+
+    val toRet = parsed.map { case (label, indices, values) =>
+      LabeledPoint(label, Vectors.sparse(d, indices, values))
+    }
+
+    if (numFeatures <= 0) {
+      toRet.persist(StorageLevel.MEMORY_ONLY)
+      toRet.count
+      parsed.unpersist()
+    }
+    toRet
+  }
+
 
 }

@@ -34,6 +34,10 @@ abstract class PerfTest extends Logging with SparkProber {
     intOptionValue(INTER_TRIAL_WAIT) * 1000
   }
 
+  def getScaleFactorConfig: Double = {
+    doubleOptionValue(SCALE_FACTOR)
+  }
+
   def createInputData(seed: Long)
 
   /**

@@ -51,7 +51,8 @@ abstract class RegressionAndClassificationTests[M](sc: SparkContext) extends Per
     val testTime = (System.currentTimeMillis() - start).toDouble / 1000.0
 
     val testMetric = validate(model, testRdd)
-    rdd.unpersist()
+    rdd.unpersist(blocking = true)
+    testRdd.unpersist(blocking = true)
     val map = Map("trainingTime" -> trainingTime, "testTime" -> testTime,
       "trainingMetric" -> trainingMetric, "testMetric" -> testMetric)
     (map, proberLog)
@@ -181,6 +182,11 @@ class SparseGLMRegressionTest(sc: SparkContext) extends GLMRegressionTest(sc) {
 
   val SPARSITY =  ("sparsity",   "sparsity of data")
 
+  doubleOptions = doubleOptions ++ Seq(SPARSITY)
+
+  //val options = intOptions ++ stringOptions  ++ booleanOptions ++ doubleOptions ++ longOptions
+  addOptionsToParser()
+
   override def createInputData(seed: Long) = {
     val numExamples: Long = longOptionValue(NUM_EXAMPLES)
     val numFeatures: Int = intOptionValue(NUM_FEATURES)
@@ -200,6 +206,33 @@ class SparseGLMRegressionTest(sc: SparkContext) extends GLMRegressionTest(sc) {
 
     // Materialize rdd
     println("Num Examples: " + rdd.count())
+  }
+}
+
+class SparseGLMClassificationTest(sc: SparkContext) extends GLMClassificationTest(sc) {
+
+  val TRAINING_DATA_PATH = ("training-data", "location of training data") 
+
+  stringOptions = stringOptions ++ Seq(TRAINING_DATA_PATH)
+
+  //val options = intOptions ++ stringOptions  ++ booleanOptions ++ doubleOptions ++ longOptions
+  addOptionsToParser()
+
+  override def createInputData(seed: Long) = {
+    val trainingDataPath: String = optionValue[String]("training-data")
+    println(s"LOADING FILE: $trainingDataPath")
+    val numPartitions: Int = intOptionValue(NUM_PARTITIONS)
+    val (rdds, categoricalFeaturesInfo_, numClasses, trainingDataRaw) = 
+      DataLoader.loadLibSVMFiles(sc, numPartitions, trainingDataPath, "",
+        0.2, seed, getScaleFactorConfig)
+
+    rdd = rdds(0).cache()
+    testRdd = rdds(1).cache()
+
+    // Materialize rdd
+    println("Num Examples: " + rdd.count())
+    testRdd.count()
+    trainingDataRaw.unpersist()
   }
 }
 
@@ -347,7 +380,7 @@ abstract class RecommendationTests(sc: SparkContext) extends PerfTest {
     val testTime = (System.currentTimeMillis() - start).toDouble / 1000.0
 
     val testMetric = validate(model, testRdd)
-    rdd.unpersist()
+    rdd.unpersist(blocking = true)
     val map = Map("trainingTime" -> trainingTime, "testTime" -> testTime,
       "trainingMetric" -> trainingMetric, "testMetric" -> testMetric)
     (map, proberLog)
@@ -575,7 +608,7 @@ class DecisionTreeTest(sc: SparkContext) extends DecisionTreeTests(sc) {
 
   override def createInputData(seed: Long) = {
     val trainingDataPath: String = optionValue[String]("training-data")
-    val (rdds, categoricalFeaturesInfo_, numClasses) = if (trainingDataPath != "") {
+    val (rdds, categoricalFeaturesInfo_, numClasses, trainingDataRaw) = if (trainingDataPath != "") {
       println(s"LOADING FILE: $trainingDataPath")
       val numPartitions: Int = intOptionValue(NUM_PARTITIONS)
       val testDataPath: String = optionValue[String]("test-data")
@@ -603,7 +636,7 @@ class DecisionTreeTest(sc: SparkContext) extends DecisionTreeTests(sc) {
    *          numClasses = number of classes label can take.
    */
   private def createSyntheticInputData(
-      seed: Long): (Array[RDD[LabeledPoint]], Map[Int, Int], Int) = {
+      seed: Long): (Array[RDD[LabeledPoint]], Map[Int, Int], Int, RDD[LabeledPoint]) = {
     // Generic test options
     val numPartitions: Int = intOptionValue(NUM_PARTITIONS)
     val testDataFraction: Double = getTestDataFraction
@@ -622,7 +655,7 @@ class DecisionTreeTest(sc: SparkContext) extends DecisionTreeTests(sc) {
         fracCategoricalFeatures, fracBinaryFeatures, treeDepth, seed)
 
     val splits = rdd_.randomSplit(Array(1.0 - testDataFraction, testDataFraction), seed)
-    (splits, categoricalFeaturesInfo_, labelType)
+    (splits, categoricalFeaturesInfo_, labelType, rdd_)
   }
 
   override def runTest(rdd: RDD[LabeledPoint]): RandomForestModel = {

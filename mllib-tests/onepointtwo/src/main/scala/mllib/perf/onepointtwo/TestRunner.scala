@@ -27,6 +27,7 @@ object TestRunner {
       val test: PerfTest = testName match {
         case "sparse-glm-regression" => new SparseGLMRegressionTest(sc)
         case "glm-regression" => new GLMRegressionTest(sc)
+        case "sparse-glm-classification" => new SparseGLMClassificationTest(sc)
         case "glm-classification" => new GLMClassificationTest(sc)
         case "naive-bayes" => new NaiveBayesTest(sc)
         // recommendation

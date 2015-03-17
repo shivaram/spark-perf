@@ -392,16 +392,17 @@ class SparseLinearDataGenerator(
     val problem: String = "",
     val sparsity: Double = 1.0) extends RandomDataGenerator[LabeledPoint] {
 
+  private val alpha = 1.7
   private val rng = new java.util.Random(seed)
 
   private val weights = Array.fill(numFeatures)(rng.nextDouble())
 
   override def nextValue(): LabeledPoint = {
-    val nnz = math.ceil((rng.nextGaussian() + sparsity)*(numFeatures)).toInt
+    val nnz = math.min(math.ceil((sparsity / (math.pow(rng.nextDouble, (1.0/alpha)))) * numFeatures).toInt, numFeatures)
     val x = Array.fill[Double](nnz)(2*rng.nextDouble()-1)
     val idxRng = new scala.util.Random(rng.nextLong())
     val xIdx = idxRng.shuffle((0 until numFeatures).toList).take(nnz).toArray
-    val sparseX = Vectors.sparse(nnz, xIdx, x)
+    val sparseX = Vectors.sparse(numFeatures, xIdx, x)
 
     var total = 0.0
     xIdx.zipWithIndex.foreach { case (idx, i) =>
