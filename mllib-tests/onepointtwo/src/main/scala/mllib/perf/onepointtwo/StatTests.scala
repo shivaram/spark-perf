@@ -18,7 +18,7 @@ import mllib.perf.onepointtwo.util.DataGenerator
 /**
  * Parent class for the tests for the statistics toolbox
  */
-abstract class StatTests[T](sc: SparkContext) extends PerfTest {
+abstract class StatTests[T](val sc: SparkContext) extends PerfTest {
 
   def runTest(rdd: RDD[T])
 

@@ -11,7 +11,7 @@ import mllib.perf.onepointtwo.util.DataGenerator
 /** Parent class for linear algebra tests which run on a large dataset.
   * Generated this way so that SVD / PCA can be added easily
   */
-abstract class LinearAlgebraTests(sc: SparkContext) extends PerfTest {
+abstract class LinearAlgebraTests(val sc: SparkContext) extends PerfTest {
 
   def runTest(rdd: RowMatrix, rank: Int)
 

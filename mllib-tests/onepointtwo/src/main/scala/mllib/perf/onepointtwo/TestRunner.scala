@@ -78,7 +78,10 @@ object TestRunner {
       test match {
         case x: ClusteringTests => warmUpNetworkLinks(x.sc)
         case x: RegressionAndClassificationTests[_] => warmUpNetworkLinks(x.sc)
-        case _ =>
+        case x: RecommendationTests => warmUpNetworkLinks(x.sc)
+        case x: StatTests[_] => warmUpNetworkLinks(x.sc)
+        case x: LinearAlgebraTests => warmUpNetworkLinks(x.sc)
+        case _ => sys.error("unknown or newly added test for v1p2?")
       }
 
       // We register prober at last trial, so the log records
