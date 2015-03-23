@@ -211,7 +211,7 @@ class SparseGLMRegressionTest(sc: SparkContext) extends GLMRegressionTest(sc) {
 
 class SparseGLMClassificationTest(sc: SparkContext) extends GLMClassificationTest(sc) {
 
-  val TRAINING_DATA_PATH = ("training-data", "location of training data") 
+  val TRAINING_DATA_PATH = ("training-data", "location of training data")
 
   stringOptions = stringOptions ++ Seq(TRAINING_DATA_PATH)
 
@@ -222,7 +222,7 @@ class SparseGLMClassificationTest(sc: SparkContext) extends GLMClassificationTes
     val trainingDataPath: String = optionValue[String]("training-data")
     println(s"LOADING FILE: $trainingDataPath")
     val numPartitions: Int = intOptionValue(NUM_PARTITIONS)
-    val (rdds, categoricalFeaturesInfo_, numClasses, trainingDataRaw) = 
+    val (rdds, categoricalFeaturesInfo_, numClasses, trainingDataRaw) =
       DataLoader.loadLibSVMFiles(sc, numPartitions, trainingDataPath, "",
         0.2, seed, getScaleFactorConfig)
 
@@ -338,6 +338,8 @@ abstract class RecommendationTests(val sc: SparkContext) extends PerfTest {
   var testRdd: RDD[Rating] = _
 
   override def createInputData(seed: Long) = {
+    Seq(rdd, testRdd).foreach(Option(_).foreach(_.unpersist(blocking = true)))
+
     val numPartitions: Int = intOptionValue(NUM_PARTITIONS)
 
     val numUsers: Int = intOptionValue(NUM_USERS)
@@ -358,14 +360,15 @@ abstract class RecommendationTests(val sc: SparkContext) extends PerfTest {
 
   def validate(model: MatrixFactorizationModel,
                data: RDD[Rating]): Double = {
-    val implicitPrefs: Boolean = booleanOptionValue(IMPLICIT)
-    val predictions: RDD[Rating] = model.predict(data.map(x => (x.user, x.product)))
-    val predictionsAndRatings: RDD[(Double, Double)] = predictions.map{ x =>
-      def mapPredictedRating(r: Double) = if (implicitPrefs) math.max(math.min(r, 1.0), 0.0) else r
-      ((x.user, x.product), mapPredictedRating(x.rating))
-    }.join(data.map(x => ((x.user, x.product), x.rating))).values
-
-    math.sqrt(predictionsAndRatings.map(x => (x._1 - x._2) * (x._1 - x._2)).mean())
+    -1
+//    val implicitPrefs: Boolean = booleanOptionValue(IMPLICIT)
+//    val predictions: RDD[Rating] = model.predict(data.map(x => (x.user, x.product)))
+//    val predictionsAndRatings: RDD[(Double, Double)] = predictions.map{ x =>
+//      def mapPredictedRating(r: Double) = if (implicitPrefs) math.max(math.min(r, 1.0), 0.0) else r
+//      ((x.user, x.product), mapPredictedRating(x.rating))
+//    }.join(data.map(x => ((x.user, x.product), x.rating))).values
+//
+//    math.sqrt(predictionsAndRatings.map(x => (x._1 - x._2) * (x._1 - x._2)).mean())
   }
 
   override def run() = {
@@ -374,6 +377,12 @@ abstract class RecommendationTests(val sc: SparkContext) extends PerfTest {
     val trainingTime = (System.currentTimeMillis() - start).toDouble / 1000.0
 
     val proberLog = proberResults().waitAndCopy(3000)
+      .record(Map(
+        " testName" -> testName,
+        " sparkAppName" -> sc.appName,
+        " endToEndTrainingTimeMillis" -> (trainingTime * 1000).toString,
+        " totalStages" -> listener.stageCnt.toString)
+      )
 
     start = System.currentTimeMillis()
     val trainingMetric = validate(model, rdd)
