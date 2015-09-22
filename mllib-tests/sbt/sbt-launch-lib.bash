@@ -51,7 +51,7 @@ acquire_sbt_jar () {
     printf "Attempting to fetch sbt\n"
     JAR_DL="${JAR}.part"
     if hash curl 2>/dev/null; then
-      (curl --silent ${URL1} > "${JAR_DL}" || curl --silent ${URL2} > "${JAR_DL}") && mv "${JAR_DL}" "${JAR}"
+      (curl --fail --location --silent ${URL1} > "${JAR_DL}" || curl --fail --location --silent ${URL2} > "${JAR_DL}") && mv "${JAR_DL}" "${JAR}"
     elif hash wget 2>/dev/null; then
       (wget --quiet ${URL1} -O "${JAR_DL}" || wget --quiet ${URL2} -O "${JAR_DL}") && mv "${JAR_DL}" "${JAR}"
     else

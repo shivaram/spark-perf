@@ -75,14 +75,19 @@ object DataLoader {
       seed: Long,
       scaleFactor: Double = 1.0): (Array[RDD[LabeledPoint]], Map[Int, Int], Int, RDD[LabeledPoint]) = {
     var textRdd = sc.textFile(trainingDataPath, numPartitions)
+    val numFeatures = computeNumFeatures(sc, textRdd)
     if (scaleFactor != 1.0) {
       val totalParts = textRdd.partitions.size
       val reqdParts = math.ceil(scaleFactor * totalParts).toInt
+      // Randomize the parts we choose
+      val rnd = new scala.util.Random(42)
+      val selectedParts = rnd.shuffle((0 until totalParts).toList).take(reqdParts).toSet
       textRdd = PartitionPruningRDD.create(textRdd, 
-        partId => partId < reqdParts)
+        partId => selectedParts.contains(partId))
     }
 
-    val trainingData = loadLibSVMFileFromText(textRdd, trainingDataPath, -1, numPartitions)
+    val trainingData = loadLibSVMFileFromText(textRdd, trainingDataPath, numFeatures, numPartitions)
+    trainingData.persist(StorageLevel.MEMORY_ONLY)
 
     val (rdds, categoricalFeaturesInfo_) = if (testDataPath == "") {
       // randomly split trainingData into train, test
@@ -149,6 +154,28 @@ object DataLoader {
     }
 
     (finalDatasets, categoricalFeaturesInfo_, numClasses, trainingData)
+  }
+
+  def computeNumFeatures(sc: SparkContext, rdd: RDD[String]): Int = {
+    val parsed = rdd
+      .map(_.trim)
+      .filter(line => !(line.isEmpty || line.startsWith("#")))
+      .map { line =>
+        val items = line.split(' ')
+        val label = items.head.toDouble
+        val (indices, values) = items.tail.filter(_.nonEmpty).map { item =>
+          val indexAndValue = item.split(':')
+          val index = indexAndValue(0).toInt - 1 // Convert 1-based indices to 0-based.
+          val value = indexAndValue(1).toDouble
+          (index, value)
+        }.unzip
+        (label, indices.toArray, values.toArray)
+      }
+
+    val d = parsed.map { case (label, indices, values) =>
+        indices.lastOption.getOrElse(0)
+      }.reduce(math.max) + 1
+    d
   }
 
   def loadLibSVMFileFromText(
